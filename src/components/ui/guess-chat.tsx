@@ -14,6 +14,12 @@ interface Message {
 
 interface GuessChatProps {
   hiddenMeaning: string | null;
+  language: "EN" | "CN" | "ID";
+}
+
+// Add a new event for revealing letters
+interface RevealLetterEvent {
+  onRevealLetter: (isCorrect: boolean) => void;
 }
 
 const anthropic = new Anthropic({
@@ -21,13 +27,14 @@ const anthropic = new Anthropic({
   dangerouslyAllowBrowser: true
 });
 
-export function GuessChat({ hiddenMeaning }: GuessChatProps) {
+export function GuessChat({ hiddenMeaning, onRevealLetter, language }: GuessChatProps & RevealLetterEvent) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Scroll to bottom whenever messages change
   useEffect(() => {
@@ -36,12 +43,29 @@ export function GuessChat({ hiddenMeaning }: GuessChatProps) {
     }
   }, [messages]);
 
+  // Auto-focus input after submission
+  useEffect(() => {
+    if (!isSubmitting && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [isSubmitting]);
+
   // Add validation for single word input
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    // Only allow letters and remove spaces
-    const sanitizedValue = value.replace(/[^a-zA-Z]/g, '').toLowerCase();
-    setInput(sanitizedValue);
+    if (language === "EN") {
+      // Only allow letters for English
+      const sanitizedValue = value.replace(/[^a-zA-Z]/g, '').toLowerCase();
+      setInput(sanitizedValue);
+    } else if (language === "ID") {
+      // Allow letters and basic Indonesian characters
+      const sanitizedValue = value.replace(/[^a-zA-Z\u00C0-\u00FF]/g, '').toLowerCase();
+      setInput(sanitizedValue);
+    } else {
+      // Allow Chinese characters and remove spaces
+      const sanitizedValue = value.replace(/\s/g, '');
+      setInput(sanitizedValue);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -50,28 +74,81 @@ export function GuessChat({ hiddenMeaning }: GuessChatProps) {
 
     const guess = input.trim().toLowerCase();
     
-    // Additional validation to ensure it's one word
-    if (guess.includes(' ')) {
+    if ((language === "EN" || language === "ID") && guess.includes(' ')) {
       setMessages(prev => [...prev, { 
         role: "assistant", 
-        content: "Please enter only one word." 
+        content: language === "EN" ? "Please enter only one word." : "Mohon masukkan satu kata saja."
       }]);
       return;
     }
 
     setIsSubmitting(true);
     setInput("");
-
-    // Add user message
     setMessages(prev => [...prev, { role: "user", content: guess }]);
 
     try {
+      if (guess.toLowerCase() === hiddenMeaning.toLowerCase()) {
+        onRevealLetter(true);
+        const correctMessages = {
+          EN: "🎉 Correct! You found the hidden meaning!",
+          CN: "🎉 正确！你找到了隐藏的含义！",
+          ID: "🎉 Benar! Anda menemukan makna tersembunyinya!"
+        };
+        setMessages(prev => [...prev, { 
+          role: "assistant", 
+          content: correctMessages[language]
+        }]);
+        setIsSubmitting(false);
+        return;
+      }
+
+      onRevealLetter(false);
+
+      const promptTemplates = {
+        EN: `The hidden meaning is "${hiddenMeaning}". The user guessed "${guess}".
+
+Rules for your response:
+1. Never mention anything about letters being revealed
+2. If wrong, provide a helpful hint by comparing their guess to the actual meaning:
+   - If their guess is semantically related, acknowledge that and guide them closer
+   - If completely off, give a subtle hint about the theme or category
+   - Never reveal the answer directly
+   - Keep hints subtle and poetic
+   - Maximum 2 sentences
+3. Make each hint different from previous ones to help user progress
+4. If they're very close (e.g., synonym or similar meaning), encourage them that they're on the right track`,
+        CN: `隐藏的含义是"${hiddenMeaning}"。用户猜测的是"${guess}"。
+
+回答规则：
+1. 不要提及任何关于字的显示
+2. 如果猜错了，提供有帮助的提示：
+   - 如果猜测在语义上相关，肯定这一点并引导他们更接近答案
+   - 如果完全不相关，给出关于主题或类别的微妙提示
+   - 永远不要直接透露答案
+   - 保持提示的含蓄和诗意
+   - 最多2句话
+3. 每次提示都要不同，帮助用户逐步接近答案
+4. 如果非常接近（例如同义词），鼓励他们说他们很接近了`,
+        ID: `Makna tersembunyi adalah "${hiddenMeaning}". Pengguna menebak "${guess}".
+
+Aturan untuk respons:
+1. Jangan pernah menyebutkan tentang huruf yang terungkap
+2. Jika salah, berikan petunjuk yang membantu:
+   - Jika tebakan secara semantik terkait, akui dan bimbing mereka lebih dekat
+   - Jika sama sekali tidak terkait, berikan petunjuk halus tentang tema
+   - Jangan pernah ungkapkan jawaban secara langsung
+   - Jaga petunjuk tetap halus dan puitis
+   - Maksimal 2 kalimat
+3. Buat setiap petunjuk berbeda untuk membantu pengguna maju
+4. Jika sangat dekat (misal sinonim), beri semangat bahwa mereka sudah dekat`
+      };
+
       const response = await anthropic.messages.create({
         model: "claude-3-5-sonnet-20241022",
         max_tokens: 1024,
         messages: [{
           role: "user",
-          content: `The hidden meaning is "${hiddenMeaning}". The user guessed "${guess}". If the guess matches the hidden meaning (case-insensitive), say "Correct! You found the hidden meaning!". If it doesn't match, provide a brief, encouraging response about why it's not correct. Keep your response under 20 words.`
+          content: promptTemplates[language]
         }]
       });
 
@@ -110,7 +187,13 @@ export function GuessChat({ hiddenMeaning }: GuessChatProps) {
         }`}
       >
         <div className="p-3 border-b border-zinc-200 dark:border-zinc-800 flex justify-between items-center">
-          <h3 className="font-semibold text-sm">Guess the Hidden Meaning</h3>
+          <h3 className="font-semibold text-sm">
+            {language === "EN" 
+              ? "Guess the Hidden Meaning" 
+              : language === "CN" 
+                ? "猜测隐藏含义" 
+                : "Tebak Makna Tersembunyi"}
+          </h3>
           <button
             onClick={() => setIsCollapsed(true)}
             className="text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
@@ -141,21 +224,38 @@ export function GuessChat({ hiddenMeaning }: GuessChatProps) {
         <form onSubmit={handleSubmit} className="p-3 border-t border-zinc-200 dark:border-zinc-800">
           <div className="flex gap-2">
             <Input
+              ref={inputRef}
               value={input}
               onChange={handleInputChange}
-              placeholder="Enter one word"
+              placeholder={
+                language === "EN" 
+                  ? "Enter one word" 
+                  : language === "CN" 
+                    ? "输入你的猜测" 
+                    : "Masukkan satu kata"
+              }
               disabled={isSubmitting || !hiddenMeaning}
-              maxLength={20}
+              maxLength={language === "CN" ? 50 : 20}
               className="text-sm"
-              pattern="[a-zA-Z]+"
-              title="Please enter a single word (letters only)"
+              pattern={language === "EN" || language === "ID" ? "[a-zA-Z]+" : undefined}
+              title={
+                language === "EN" 
+                  ? "Please enter a single word (letters only)"
+                  : language === "CN"
+                    ? "请输入你的猜测"
+                    : "Mohon masukkan satu kata saja"
+              }
             />
             <Button 
               type="submit" 
               disabled={isSubmitting || !hiddenMeaning || !input.trim()}
               size="sm"
             >
-              Send
+              {language === "EN" 
+                ? "Send" 
+                : language === "CN" 
+                  ? "发送" 
+                  : "Kirim"}
             </Button>
           </div>
         </form>

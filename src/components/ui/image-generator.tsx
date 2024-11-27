@@ -35,20 +35,30 @@ interface FluxResult {
   requestId: string;
 }
 
+type Language = "EN" | "CN" | "ID";
+
 export function ImageGenerator() {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hiddenMeaning, setHiddenMeaning] = useState<string | null>(null);
   const [prompt, setPrompt] = useState<string | null>(null);
+  const [revealedLetters, setRevealedLetters] = useState(1);
+  const [language, setLanguage] = useState<Language>("EN");
 
   const generatePromptWithClaude = async (): Promise<GeneratedPrompt> => {
+    const prompts = {
+      EN: "Generate a creative prompt for an AI image generator that has a hidden meaning or message behind it. Tell the image generator to make an art style of renaissance painting. Return ONLY a JSON object with 'imagePrompt' and 'hiddenMeaning' fields, nothing else. The hiddenMeaning must be one word only. Make the prompt thought-provoking but not too obvious.",
+      CN: "用中文生成一个有隐藏含义的AI图像生成器提示。图像风格要求是中国古典画风。由于图像生成器不明白中文，所以用英文。只返回一个带有'imagePrompt'和'hiddenMeaning'字段的JSON对象，不要其他内容。hiddenMeaning可以是一个词组或成语。提示要有深意但不要太明显。",
+      ID: "Buatkan prompt untuk AI image generator yang memiliki makna tersembunyi. Gaya seninya seperti lukisan Raden Saleh. Karena Image Generatornya tidak mengerti Bahasa Indonesia, maka buat promptnya dalam bahasa Inggris. Kembalikan HANYA objek JSON dengan field 'imagePrompt' dan 'hiddenMeaning', tidak ada yang lain. HiddenMeaning harus satu kata saja dalam Bahasa Indonesia. Buat promptnya menarik tapi tidak terlalu jelas."
+    };
+
     const message = await anthropic.messages.create({
       model: "claude-3-5-sonnet-20241022",
       max_tokens: 8192,
       messages: [{
         role: "user",
-        content: "Generate a creative prompt for an AI image generator that has a hidden meaning or message behind it. Tell the image generator to make an art style of renaissance painting. Return ONLY a JSON object with 'imagePrompt' and 'hiddenMeaning' fields, nothing else. The hiddenMeaning must be one word only. Make the prompt thought-provoking but not too obvious. Example format: {\"imagePrompt\": \"your prompt here\", \"hiddenMeaning\": \"meaning here\"}"
+        content: prompts[language] + ' Example format: {"imagePrompt": "your prompt here", "hiddenMeaning": "meaning here"}'
       }]
     });
 
@@ -86,6 +96,7 @@ export function ImageGenerator() {
     setImageUrl(null);
     setHiddenMeaning(null);
     setPrompt(null);
+    setRevealedLetters(1);
     
     try {
       // First, get the prompt from Claude
@@ -136,23 +147,69 @@ export function ImageGenerator() {
     }
   };
 
-  const formatHiddenMeaning = (meaning: string | null) => {
+  const formatHiddenMeaning = (meaning: string | null, showAll: boolean = false) => {
     if (!meaning) return '';
     const letters = meaning.split('');
     return letters.map((letter, index) => 
-      index === 0 ? letter.toUpperCase() : '_'
+      showAll || index < revealedLetters ? letter.toUpperCase() : '_'
     ).join(' ');
+  };
+
+  const handleRevealLetter = (isCorrect: boolean = false) => {
+    if (hiddenMeaning) {
+      if (isCorrect) {
+        setRevealedLetters(hiddenMeaning.length); // Reveal all letters
+      } else if (revealedLetters < hiddenMeaning.length) {
+        setRevealedLetters(prev => prev + 1);
+      }
+    }
   };
 
   return (
     <div className="flex flex-col items-center gap-4 w-full relative h-[calc(100vh-4rem)]">
-      <Button
-        onClick={generateImage}
-        disabled={loading}
-        className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 px-8"
-      >
-        {loading ? "Generating..." : "Generate Image"}
-      </Button>
+      <div className="flex items-center gap-4">
+        <div className="flex rounded-lg overflow-hidden border border-zinc-200 dark:border-zinc-800">
+          <button
+            onClick={() => setLanguage("EN")}
+            className={`px-4 py-2 text-sm transition-colors ${
+              language === "EN"
+                ? "bg-foreground text-background"
+                : "hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            }`}
+          >
+            English
+          </button>
+          <button
+            onClick={() => setLanguage("CN")}
+            className={`px-4 py-2 text-sm transition-colors ${
+              language === "CN"
+                ? "bg-foreground text-background"
+                : "hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            }`}
+          >
+            中文
+          </button>
+          <button
+            onClick={() => setLanguage("ID")}
+            className={`px-4 py-2 text-sm transition-colors ${
+              language === "ID"
+                ? "bg-foreground text-background"
+                : "hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            }`}
+          >
+            Indonesia
+          </button>
+        </div>
+        <button
+          onClick={generateImage}
+          disabled={loading}
+          className="px-4 py-2 text-sm transition-colors border border-zinc-200 dark:border-zinc-800 rounded-lg bg-zinc-50 dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {loading 
+            ? (language === "EN" ? "Generating..." : language === "CN" ? "生成中..." : "Membuat...")
+            : (language === "EN" ? "Generate Image" : language === "CN" ? "生成图片" : "Buat Gambar")}
+        </button>
+      </div>
       
       {error && (
         <div className="text-red-500 text-sm p-2 bg-red-50 dark:bg-red-900/20 rounded-lg">
@@ -178,7 +235,13 @@ export function ImageGenerator() {
         </div>
       )}
       
-      {imageUrl && hiddenMeaning && <GuessChat hiddenMeaning={hiddenMeaning} />}
+      {imageUrl && hiddenMeaning && (
+        <GuessChat 
+          hiddenMeaning={hiddenMeaning} 
+          onRevealLetter={handleRevealLetter}
+          language={language}
+        />
+      )}
     </div>
   );
 } 
