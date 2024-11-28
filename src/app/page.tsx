@@ -14,7 +14,7 @@ export default function Home() {
         <div className="text-center">
           <h2 className="text-2xl font-bold mb-4">Welcome to Guess It</h2>
           <p className="mb-8 text-zinc-600 dark:text-zinc-400">Sign in to start playing!</p>
-          <SignIn />
+          <SignIn routing="hash" />
         </div>
       </SignedOut>
     </main>

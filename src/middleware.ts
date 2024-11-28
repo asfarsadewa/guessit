@@ -1,9 +1,6 @@
 import { clerkMiddleware } from "@clerk/nextjs/server";
 
-export default clerkMiddleware({
-  publicRoutes: ["/", "/sign-in", "/sign-up", "/sso-callback"],
-  ignoredRoutes: ["/api/fal/proxy"]
-});
+export default clerkMiddleware();
 
 export const config = {
   matcher: [
