@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { fal } from "@fal-ai/client";
 import { Anthropic } from "@anthropic-ai/sdk";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { GuessChat } from "@/components/ui/guess-chat";
+import { supabase } from "@/lib/supabase";
+import { useUser } from "@clerk/nextjs";
 
 // Configure APIs
 fal.config({
@@ -46,6 +48,63 @@ export function ImageGenerator() {
   const [revealedLetters, setRevealedLetters] = useState(1);
   const [language, setLanguage] = useState<Language>("EN");
   const [gameKey, setGameKey] = useState(0);
+  const { user } = useUser();
+  const [playsRemaining, setPlaysRemaining] = useState<number | null>(9);
+
+  // Check remaining plays on mount and after each generation
+  useEffect(() => {
+    if (user?.id) {
+      checkRemainingPlays();
+    }
+  }, [user?.id]);
+
+  const checkRemainingPlays = async () => {
+    if (!user?.id) return;
+
+    try {
+      const { data, error, count } = await supabase
+        .from('game_plays')
+        .select('*', { count: 'exact' })
+        .eq('user_id', user.id)
+        .gte('created_at', new Date().toISOString().split('T')[0]);
+
+      if (error) {
+        console.error('Error checking plays:', error);
+        return;
+      }
+
+      const remaining = 9 - (count || 0);
+      setPlaysRemaining(remaining);
+      console.log(`Plays remaining: ${remaining}`);
+    } catch (err) {
+      console.error('Error checking plays:', err);
+    }
+  };
+
+  const recordPlay = async (imageUrl: string, hiddenMeaning: string) => {
+    if (!user?.id) return;
+
+    try {
+      const { error } = await supabase
+        .from('game_plays')
+        .insert({
+          user_id: user.id,
+          image_url: imageUrl,
+          hidden_meaning: hiddenMeaning,
+          language
+        });
+
+      if (error) {
+        console.error('Error recording play:', error);
+        throw error;
+      }
+
+      await checkRemainingPlays();
+    } catch (err) {
+      console.error('Error recording play:', err);
+      throw err;
+    }
+  };
 
   const generatePromptWithClaude = async (): Promise<GeneratedPrompt> => {
     const prompts = {
@@ -92,6 +151,11 @@ export function ImageGenerator() {
   };
 
   const generateImage = async () => {
+    if (playsRemaining !== null && playsRemaining <= 0) {
+      setError("You've reached your daily limit of 9 images. Try again tomorrow!");
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setImageUrl(null);
@@ -134,6 +198,8 @@ export function ImageGenerator() {
         const imageUrl = result.data.images[0].url;
         console.log("Setting image URL:", imageUrl);
         setImageUrl(imageUrl);
+        // Record the play in Supabase
+        await recordPlay(imageUrl, generatedPrompt.hiddenMeaning);
       } else {
         throw new Error("No image URL in response");
       }
@@ -204,12 +270,14 @@ export function ImageGenerator() {
         </div>
         <button
           onClick={generateImage}
-          disabled={loading}
+          disabled={loading || (playsRemaining !== null && playsRemaining <= 0)}
           className="px-4 py-2 text-sm transition-colors border border-zinc-200 dark:border-zinc-800 rounded-lg bg-zinc-50 dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading 
             ? (language === "EN" ? "Generating..." : language === "CN" ? "生成中..." : "Membuat...")
-            : (language === "EN" ? "Generate Image" : language === "CN" ? "生成图片" : "Buat Gambar")}
+            : playsRemaining !== null && playsRemaining <= 0
+            ? (language === "EN" ? "Daily Limit Reached" : language === "CN" ? "已达每日限制" : "Batas Harian Tercapai")
+            : (language === "EN" ? `Generate Image (${playsRemaining} left)` : language === "CN" ? `生成图片 (剩余${playsRemaining}次)` : `Buat Gambar (${playsRemaining} tersisa)`)}
         </button>
       </div>
       
