@@ -287,6 +287,25 @@ export function ImageGenerator() {
         </div>
       )}
       
+      {!imageUrl && (
+        <div className="w-full max-w-2xl p-6 rounded-xl bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800">
+          <h2 className="text-lg font-semibold mb-4">
+            {language === "EN" 
+              ? "How to Play" 
+              : language === "CN" 
+                ? "游戏说明" 
+                : "Cara Bermain"}
+          </h2>
+          <p className="text-zinc-600 dark:text-zinc-400 leading-relaxed">
+            {language === "EN" 
+              ? "Each generated image contains a hidden meaning. Study the image carefully and try to guess the hidden word. With each wrong guess, a new letter will be revealed and Claude will provide a helpful hint. You have 9 image generations per day - make them count!" 
+              : language === "CN" 
+                ? "每张生成的图片都包含一个隐藏含义。仔细观察图片，尝试猜出隐藏的词语。每次猜错时，将会揭示一个新字母，Claude也会提供有用的提示。每天可以生成9张图片 - 好好把握机会！" 
+                : "Setiap gambar yang dihasilkan memiliki makna tersembunyi. Amati gambar dengan cermat dan coba tebak kata yang tersembunyi. Setiap tebakan yang salah akan mengungkap huruf baru dan Claude akan memberikan petunjuk. Anda memiliki 9 kesempatan per hari - gunakan dengan bijak!"}
+          </p>
+        </div>
+      )}
+      
       {imageUrl && (
         <div className="flex flex-col gap-2 w-full">
           <div className="relative w-full aspect-[3/4] sm:h-[calc(100vh-12rem)] rounded-xl overflow-hidden">
