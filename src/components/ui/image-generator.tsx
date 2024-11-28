@@ -234,8 +234,8 @@ export function ImageGenerator() {
   };
 
   return (
-    <div className="flex flex-col items-center gap-4 w-full relative h-[calc(100vh-4rem)]">
-      <div className="flex items-center gap-4">
+    <div className="flex flex-col items-center gap-4 w-full relative min-h-[calc(100vh-4rem)] sm:h-[calc(100vh-4rem)] overflow-hidden">
+      <div className="flex items-center gap-4 pt-2">
         <div className="flex rounded-lg overflow-hidden border border-zinc-200 dark:border-zinc-800">
           <button
             onClick={() => setLanguage("EN")}
@@ -288,8 +288,8 @@ export function ImageGenerator() {
       )}
       
       {imageUrl && (
-        <div className="flex flex-col gap-2 w-full h-full">
-          <div className="relative w-full h-[calc(100%-2rem)] rounded-xl overflow-hidden">
+        <div className="flex flex-col gap-2 w-full">
+          <div className="relative w-full aspect-[3/4] sm:h-[calc(100vh-12rem)] rounded-xl overflow-hidden">
             <Image
               src={imageUrl}
               alt={prompt || "Generated image"}
