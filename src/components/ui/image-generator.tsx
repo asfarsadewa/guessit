@@ -45,6 +45,7 @@ export function ImageGenerator() {
   const [prompt, setPrompt] = useState<string | null>(null);
   const [revealedLetters, setRevealedLetters] = useState(1);
   const [language, setLanguage] = useState<Language>("EN");
+  const [gameKey, setGameKey] = useState(0);
 
   const generatePromptWithClaude = async (): Promise<GeneratedPrompt> => {
     const prompts = {
@@ -97,6 +98,7 @@ export function ImageGenerator() {
     setHiddenMeaning(null);
     setPrompt(null);
     setRevealedLetters(1);
+    setGameKey(prev => prev + 1);
     
     try {
       // First, get the prompt from Claude
@@ -237,9 +239,11 @@ export function ImageGenerator() {
       
       {imageUrl && hiddenMeaning && (
         <GuessChat 
+          key={gameKey}
           hiddenMeaning={hiddenMeaning} 
           onRevealLetter={handleRevealLetter}
           language={language}
+          prompt={prompt}
         />
       )}
     </div>

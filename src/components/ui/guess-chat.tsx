@@ -15,6 +15,7 @@ interface Message {
 interface GuessChatProps {
   hiddenMeaning: string | null;
   language: "EN" | "CN" | "ID";
+  prompt: string | null;
 }
 
 // Add a new event for revealing letters
@@ -27,7 +28,7 @@ const anthropic = new Anthropic({
   dangerouslyAllowBrowser: true
 });
 
-export function GuessChat({ hiddenMeaning, onRevealLetter, language }: GuessChatProps & RevealLetterEvent) {
+export function GuessChat({ hiddenMeaning, onRevealLetter, language, prompt }: GuessChatProps & RevealLetterEvent) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -35,6 +36,7 @@ export function GuessChat({ hiddenMeaning, onRevealLetter, language }: GuessChat
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [isGameComplete, setIsGameComplete] = useState(false);
 
   // Scroll to bottom whenever messages change
   useEffect(() => {
@@ -68,9 +70,43 @@ export function GuessChat({ hiddenMeaning, onRevealLetter, language }: GuessChat
     }
   };
 
+  const getExplanation = async (meaning: string, imagePrompt: string | null) => {
+    if (!imagePrompt) return "Couldn't generate explanation.";
+
+    const explanationPrompts = {
+      EN: `The image prompt was: "${imagePrompt}". The hidden meaning was: "${meaning}". 
+          Explain in 2-3 sentences how the image cleverly represents this meaning. 
+          Make your explanation poetic and insightful.`,
+      CN: `图片提示是："${imagePrompt}"。隐藏含义是："${meaning}"。
+          用2-3句话解释这张图片是如何巧妙地表达这个含义的。
+          请用优美又富有洞察力的语言来解释。`,
+      ID: `Prompt gambar adalah: "${imagePrompt}". Makna tersembunyinya adalah: "${meaning}".
+          Jelaskan dalam 2-3 kalimat bagaimana gambar ini dengan cerdik menggambarkan makna ini.
+          Buat penjelasan Anda puitis dan mendalam.`
+    };
+
+    try {
+      const response = await anthropic.messages.create({
+        model: "claude-3-5-sonnet-20241022",
+        max_tokens: 1024,
+        messages: [{
+          role: "user",
+          content: explanationPrompts[language]
+        }]
+      });
+
+      return response.content[0].type === 'text' 
+        ? response.content[0].text 
+        : 'Error getting explanation';
+    } catch (error) {
+      console.error("Error getting explanation:", error);
+      return "Couldn't generate explanation.";
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || !hiddenMeaning || isSubmitting) return;
+    if (!input.trim() || !hiddenMeaning || isSubmitting || isGameComplete) return;
 
     const guess = input.trim().toLowerCase();
     
@@ -89,6 +125,9 @@ export function GuessChat({ hiddenMeaning, onRevealLetter, language }: GuessChat
     try {
       if (guess.toLowerCase() === hiddenMeaning.toLowerCase()) {
         onRevealLetter(true);
+        setIsGameComplete(true); // Disable further input
+
+        // Add success message
         const correctMessages = {
           EN: "🎉 Correct! You found the hidden meaning!",
           CN: "🎉 正确！你找到了隐藏的含义！",
@@ -98,6 +137,14 @@ export function GuessChat({ hiddenMeaning, onRevealLetter, language }: GuessChat
           role: "assistant", 
           content: correctMessages[language]
         }]);
+
+        // Get and add explanation
+        const explanation = await getExplanation(hiddenMeaning, prompt);
+        setMessages(prev => [...prev, { 
+          role: "assistant", 
+          content: explanation 
+        }]);
+
         setIsSubmitting(false);
         return;
       }
@@ -228,13 +275,19 @@ Aturan untuk respons:
               value={input}
               onChange={handleInputChange}
               placeholder={
-                language === "EN" 
-                  ? "Enter one word" 
-                  : language === "CN" 
-                    ? "输入你的猜测" 
-                    : "Masukkan satu kata"
+                isGameComplete 
+                  ? (language === "EN" 
+                      ? "Game complete! Generate a new image to play again" 
+                      : language === "CN" 
+                        ? "游戏结束！生成新图片继续玩" 
+                        : "Permainan selesai! Buat gambar baru untuk main lagi")
+                  : (language === "EN" 
+                      ? "Enter one word" 
+                      : language === "CN" 
+                        ? "输入你的猜测" 
+                        : "Masukkan satu kata")
               }
-              disabled={isSubmitting || !hiddenMeaning}
+              disabled={isSubmitting || !hiddenMeaning || isGameComplete}
               maxLength={language === "CN" ? 50 : 20}
               className="text-sm"
               pattern={language === "EN" || language === "ID" ? "[a-zA-Z]+" : undefined}
@@ -248,7 +301,7 @@ Aturan untuk respons:
             />
             <Button 
               type="submit" 
-              disabled={isSubmitting || !hiddenMeaning || !input.trim()}
+              disabled={isSubmitting || !hiddenMeaning || !input.trim() || isGameComplete}
               size="sm"
             >
               {language === "EN" 
