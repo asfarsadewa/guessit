@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
+import { ClerkProvider, SignInButton, SignedIn, SignedOut, UserButton } from '@clerk/nextjs';
 import { fal } from "@fal-ai/client";
 
-// Configure fal client with the API key from public environment variable
+// Configure fal client
 fal.config({
   credentials: process.env.NEXT_PUBLIC_FAL_KEY
 });
@@ -26,16 +27,25 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: {
+  children: React.ReactNode
+}) {
   return (
-    <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        {children}
-      </body>
-    </html>
+    <ClerkProvider>
+      <html lang="en">
+        <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+          <header className="flex justify-between items-center p-2">
+            <h1 className="text-xl font-bold">Guess It</h1>
+            <SignedOut>
+              <SignInButton />
+            </SignedOut>
+            <SignedIn>
+              <UserButton afterSignOutUrl="/"/>
+            </SignedIn>
+          </header>
+          {children}
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }

@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",
+    "@clerk/nextjs": "^6.5.1",
     "@fal-ai/client": "^1.2.0",
     "@fal-ai/server-proxy": "^1.1.1",
     "@radix-ui/react-scroll-area": "^1.2.1",
@@ -24,13 +25,14 @@
     "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
-    "typescript": "^5",
+    "@clerk/types": "^4.35.0",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "eslint": "^8",
+    "eslint-config-next": "15.0.3",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
-    "eslint": "^8",
-    "eslint-config-next": "15.0.3"
+    "typescript": "^5"
   }
 }
