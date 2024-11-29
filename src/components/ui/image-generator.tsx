@@ -49,21 +49,6 @@ interface FalResponse {
 
 type Language = "EN" | "CN" | "ID";
 
-// Replace the any type with a proper type definition
-interface ErrorResponse {
-  error: {
-    message: string;
-    code?: string;
-    status?: number;
-  };
-}
-
-// First, let's define types for the queue update
-interface QueueUpdate {
-  status: string;
-  // Add other properties if needed
-}
-
 export function ImageGenerator() {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
