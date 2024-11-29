@@ -24,7 +24,14 @@ interface GeneratedPrompt {
   hiddenMeaning: string;
 }
 
-interface FluxResult {
+interface Timings {
+  queueing?: number;
+  processing?: number;
+  total?: number;
+  [key: string]: number | undefined;
+}
+
+interface FalResponse {
   data: {
     images: Array<{
       url: string;
@@ -55,14 +62,6 @@ interface ErrorResponse {
 interface QueueUpdate {
   status: string;
   // Add other properties if needed
-}
-
-// Update the Record<string, any> type
-interface Timings {
-  queueing?: number;
-  processing?: number;
-  total?: number;
-  [key: string]: number | undefined;
 }
 
 export function ImageGenerator() {
@@ -199,7 +198,7 @@ export function ImageGenerator() {
       console.log("Generated prompt:", generatedPrompt.imagePrompt);
       console.log("Hidden meaning:", generatedPrompt.hiddenMeaning);
 
-      const result = await fal.run('fal-ai/flux-pro/v1.1-ultra', {
+      const result = (await fal.run('fal-ai/flux-pro/v1.1-ultra', {
         input: {
           prompt: generatedPrompt.imagePrompt,
           num_images: 1,
@@ -208,7 +207,7 @@ export function ImageGenerator() {
           output_format: "jpeg",
           aspect_ratio: "3:4"
         }
-      });
+      })) as FalResponse;
 
       console.log("Fal.ai response:", result);
 
