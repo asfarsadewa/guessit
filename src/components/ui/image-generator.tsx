@@ -73,13 +73,7 @@ export function ImageGenerator() {
   const { user } = useUser();
   const [playsRemaining, setPlaysRemaining] = useState<number | null>(9);
 
-  // Check remaining plays on mount and after each generation
-  useEffect(() => {
-    if (user?.id) {
-      checkRemainingPlays();
-    }
-  }, [user?.id, checkRemainingPlays]);
-
+  // Move checkRemainingPlays before useEffect
   const checkRemainingPlays = useCallback(async () => {
     if (!user?.id) return;
 
@@ -102,6 +96,13 @@ export function ImageGenerator() {
       console.error('Error checking plays:', err);
     }
   }, [user?.id]);
+
+  // Now useEffect can use checkRemainingPlays
+  useEffect(() => {
+    if (user?.id) {
+      checkRemainingPlays();
+    }
+  }, [user?.id, checkRemainingPlays]);
 
   const recordPlay = async (imageUrl: string, hiddenMeaning: string) => {
     if (!user?.id) return;
