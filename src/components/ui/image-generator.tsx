@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { fal } from "@fal-ai/client";
 import { Anthropic } from "@anthropic-ai/sdk";
 import Image from "next/image";
-import { Button } from "@/components/ui/button";
 import { GuessChat } from "@/components/ui/guess-chat";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@clerk/nextjs";
@@ -38,6 +37,15 @@ interface FluxResult {
 }
 
 type Language = "EN" | "CN" | "ID";
+
+// Replace the any type with a proper type definition
+interface ErrorResponse {
+  error: {
+    message: string;
+    code?: string;
+    status?: number;
+  };
+}
 
 export function ImageGenerator() {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -203,14 +211,9 @@ export function ImageGenerator() {
       } else {
         throw new Error("No image URL in response");
       }
-    } catch (err: any) {
-      console.error("Full error object:", err);
-      setError(
-        err.message || 
-        err.error?.message || 
-        "Failed to generate image. Please try again."
-      );
-    } finally {
+    } catch (error: unknown) {
+      const errorResponse = error as ErrorResponse;
+      setError(errorResponse.error?.message || 'An unexpected error occurred');
       setLoading(false);
     }
   };

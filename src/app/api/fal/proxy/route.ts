@@ -1,8 +1,5 @@
 import { route } from "@fal-ai/server-proxy/nextjs";
 
-interface FalError {
-  status?: number;
-  message: string;
-}
+// import { FalError } from 'fal-client'
 
 export const { GET, POST } = route; 

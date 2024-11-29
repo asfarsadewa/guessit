@@ -5,7 +5,7 @@ import { Anthropic } from "@anthropic-ai/sdk";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ChevronUp, ChevronDown, MessageCircle } from "lucide-react";
+import { ChevronDown, MessageCircle } from "lucide-react";
 
 interface Message {
   role: "user" | "assistant";
