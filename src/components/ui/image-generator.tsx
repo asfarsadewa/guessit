@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { fal } from "@fal-ai/client";
 import { Anthropic } from "@anthropic-ai/sdk";
 import Image from "next/image";
@@ -28,7 +28,7 @@ interface FluxResult {
     images: Array<{
       url: string;
     }>;
-    timings: Record<string, any>;
+    timings: Timings;
     seed: number;
     has_nsfw_concepts: boolean[];
     prompt: string;
@@ -45,6 +45,20 @@ interface ErrorResponse {
     code?: string;
     status?: number;
   };
+}
+
+// First, let's define types for the queue update
+interface QueueUpdate {
+  status: string;
+  // Add other properties if needed
+}
+
+// Update the Record<string, any> type
+interface Timings {
+  queueing?: number;
+  processing?: number;
+  total?: number;
+  [key: string]: number | undefined;
 }
 
 export function ImageGenerator() {
@@ -64,13 +78,13 @@ export function ImageGenerator() {
     if (user?.id) {
       checkRemainingPlays();
     }
-  }, [user?.id]);
+  }, [user?.id, checkRemainingPlays]);
 
-  const checkRemainingPlays = async () => {
+  const checkRemainingPlays = useCallback(async () => {
     if (!user?.id) return;
 
     try {
-      const { data, error, count } = await supabase
+      const { error, count } = await supabase
         .from('game_plays')
         .select('*', { count: 'exact' })
         .eq('user_id', user.id)
@@ -87,7 +101,7 @@ export function ImageGenerator() {
     } catch (err) {
       console.error('Error checking plays:', err);
     }
-  };
+  }, [user?.id]);
 
   const recordPlay = async (imageUrl: string, hiddenMeaning: string) => {
     if (!user?.id) return;
@@ -192,7 +206,7 @@ export function ImageGenerator() {
           aspect_ratio: "3:4"
         },
         pollInterval: 1000,
-        onQueueUpdate: (update: any) => {
+        onQueueUpdate: (update: QueueUpdate) => {
           console.log("Queue status:", update.status);
           if (update.status === "IN_PROGRESS") {
             console.log("Generation in progress...");
