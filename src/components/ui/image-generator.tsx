@@ -180,9 +180,6 @@ export function ImageGenerator() {
       setPrompt(generatedPrompt.imagePrompt);
       setHiddenMeaning(generatedPrompt.hiddenMeaning);
 
-      console.log("Generated prompt:", generatedPrompt.imagePrompt);
-      console.log("Hidden meaning:", generatedPrompt.hiddenMeaning);
-
       const result = (await fal.run('fal-ai/flux-pro/v1.1-ultra', {
         input: {
           prompt: generatedPrompt.imagePrompt,
@@ -194,15 +191,12 @@ export function ImageGenerator() {
         }
       })) as FalResponse;
 
-      console.log("Fal.ai response:", result);
-
       if (result?.data?.images?.[0]?.url) {
         const imageUrl = result.data.images[0].url;
-        console.log("Setting image URL:", imageUrl);
         setImageUrl(imageUrl);
         await recordPlay(imageUrl, generatedPrompt.hiddenMeaning);
       } else {
-        console.error('Unexpected API response:', result);
+        console.error('No image URL in response');
         throw new Error("No image URL in response");
       }
     } catch (error: unknown) {
