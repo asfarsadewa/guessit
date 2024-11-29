@@ -10,7 +10,8 @@ import { useUser } from "@clerk/nextjs";
 
 // Configure APIs
 fal.config({
-  credentials: process.env.NEXT_PUBLIC_FAL_KEY
+  credentials: process.env.NEXT_PUBLIC_FAL_KEY,
+  proxyUrl: '/api/fal/proxy'
 });
 
 const anthropic = new Anthropic({
@@ -27,6 +28,9 @@ interface FluxResult {
   data: {
     images: Array<{
       url: string;
+      width: number;
+      height: number;
+      content_type: string;
     }>;
     timings: Timings;
     seed: number;
@@ -188,7 +192,6 @@ export function ImageGenerator() {
     setGameKey(prev => prev + 1);
     
     try {
-      // First, get the prompt from Claude
       const generatedPrompt = await generatePromptWithClaude();
       setPrompt(generatedPrompt.imagePrompt);
       setHiddenMeaning(generatedPrompt.hiddenMeaning);
@@ -196,8 +199,7 @@ export function ImageGenerator() {
       console.log("Generated prompt:", generatedPrompt.imagePrompt);
       console.log("Hidden meaning:", generatedPrompt.hiddenMeaning);
 
-      // Then, use the prompt with Flux
-      const result = await fal.subscribe("fal-ai/flux-pro/v1.1-ultra", {
+      const result = await fal.run('fal-ai/flux-pro/v1.1-ultra', {
         input: {
           prompt: generatedPrompt.imagePrompt,
           num_images: 1,
@@ -205,30 +207,28 @@ export function ImageGenerator() {
           safety_tolerance: "6",
           output_format: "jpeg",
           aspect_ratio: "3:4"
-        },
-        pollInterval: 1000,
-        onQueueUpdate: (update: QueueUpdate) => {
-          console.log("Queue status:", update.status);
-          if (update.status === "IN_PROGRESS") {
-            console.log("Generation in progress...");
-          }
-        },
-      }) as FluxResult;
+        }
+      });
 
-      console.log("Full Flux response:", result);
+      console.log("Fal.ai response:", result);
 
       if (result?.data?.images?.[0]?.url) {
         const imageUrl = result.data.images[0].url;
         console.log("Setting image URL:", imageUrl);
         setImageUrl(imageUrl);
-        // Record the play in Supabase
         await recordPlay(imageUrl, generatedPrompt.hiddenMeaning);
       } else {
+        console.error('Unexpected API response:', result);
         throw new Error("No image URL in response");
       }
     } catch (error: unknown) {
-      const errorResponse = error as ErrorResponse;
-      setError(errorResponse.error?.message || 'An unexpected error occurred');
+      console.error('Image generation error:', error);
+      if (error instanceof Error) {
+        setError(error.message);
+      } else {
+        setError('An unexpected error occurred');
+      }
+    } finally {
       setLoading(false);
     }
   };
